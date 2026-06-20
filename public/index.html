@@ -2,83 +2,85 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0c4f3f" />
-    <title>U.S. Open Golf Picks Live</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d2f27" />
+    <meta name="description" content="Live fantasy leaderboard for the 2026 U.S. Open at Shinnecock Hills." />
+    <title>MUST-O 2026 | U.S. Open Fantasy Leaderboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <header class="topbar">
+    <div class="grain"></div>
+    <header class="hero">
+      <nav class="nav shell">
+        <a class="brand" href="/" aria-label="MUST-O 2026 leaderboard home">
+          <span class="brand-mark">M</span>
+          <span>MUST-O 2026 <small>Presented by mGolf</small></span>
+        </a>
+        <div class="live-status" id="liveStatus"><span></span> Connecting</div>
+      </nav>
+      <div class="hero-content shell">
         <div>
-          <p class="eyebrow">Golf Picks Live</p>
-          <h1>U.S. Open</h1>
-          <p class="subtle">Best two starter rounds count each day.</p>
+          <p class="eyebrow">126th U.S. Open · June 18–21, 2026</p>
+          <h1>BROD</h1>
+          <p class="hero-copy">43 contestants. Five golfers a round. One score counts.</p>
         </div>
-        <div id="source-pill" class="source-pill connecting">
-          <span class="pulse"></span>
-          <span id="source-label">Connecting</span>
+        <div class="course-card">
+          <span class="course-number">01</span>
+          <div>
+            <p>Shinnecock Hills</p>
+            <span>Southampton, New York · Par 70</span>
+          </div>
+          <svg viewBox="0 0 72 52" aria-hidden="true"><path d="M3 43c8-16 19-6 26-19C36 11 47 7 68 8M5 47c13-7 20 2 31-7 8-7 15-9 31-7"/><circle cx="52" cy="14" r="3"/></svg>
         </div>
-      </header>
-
-      <section class="score-grid" aria-label="Match score">
-        <article class="score-card sean">
-          <p>Sean</p>
-          <h2 id="sean-total">...</h2>
-          <strong id="sean-match">Waiting</strong>
-          <div id="sean-rounds" class="round-chips"></div>
-        </article>
-        <div class="matchup-card">
-          <div class="trophy-mark" aria-hidden="true">★</div>
-          <p id="leader-text">Waiting for live scores</p>
-          <span id="updated-at">Not updated yet</span>
-        </div>
-        <article class="score-card zach">
-          <p>Zach</p>
-          <h2 id="zach-total">...</h2>
-          <strong id="zach-match">Waiting</strong>
-          <div id="zach-rounds" class="round-chips"></div>
-        </article>
-      </section>
-
-      <div class="refresh-row">
-        <span id="event-meta">Par 70 · Auto-refreshes every 60 seconds</span>
-        <button id="refresh-button" type="button" class="refresh-button" aria-label="Refresh scores">
-          <span class="refresh-icon" aria-hidden="true">↻</span>
-          <span>Refresh scores</span>
-        </button>
       </div>
+    </header>
 
-      <section class="team-grid" aria-label="Team leaderboards">
-        <article class="panel team-panel sean">
-          <div class="panel-heading">
-            <div><p class="eyebrow">Player A</p><h2>Sean</h2></div>
+    <main class="shell main">
+      <section class="controls" aria-label="Leaderboard controls">
+        <div class="control-groups">
+          <div class="game-tabs" id="gameTabs" aria-label="Game view">
+            <button class="active" data-game="main" aria-pressed="true">Main Game</button>
+            <button data-game="bteam" aria-pressed="false">B-Team</button>
+            <button data-game="alt" aria-pressed="false">Alt</button>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>Golfer</th><th>Status</th><th>Total</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th></tr></thead><tbody id="sean-team"></tbody></table></div>
-        </article>
-        <article class="panel team-panel zach">
-          <div class="panel-heading">
-            <div><p class="eyebrow">Player B</p><h2>Zach</h2></div>
+          <div class="round-tabs" id="roundTabs">
+            <button data-round="1">Round 1</button>
+            <button data-round="2">Round 2</button>
+            <button data-round="3">Round 3</button>
+            <button data-round="4">Final Round</button>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>Golfer</th><th>Status</th><th>Total</th><th>R1</th><th>R2</th><th>R3</th><th>R4</th></tr></thead><tbody id="zach-team"></tbody></table></div>
-        </article>
+        </div>
+        <label class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="searchInput" type="search" placeholder="Find a contestant or golfer" />
+        </label>
       </section>
 
-      <section class="side-grid">
-        <article class="panel side-game">
-          <div class="panel-heading"><h2>Alternate Head-to-Head</h2></div>
-          <div class="table-wrap"><table><thead><tr><th>Player</th><th>Pick</th><th>Status</th><th>Total</th></tr></thead><tbody id="alt-table"></tbody></table></div>
-          <p id="alt-verdict" class="verdict">Waiting for scores.</p>
-        </article>
-        <article class="panel side-game">
-          <div class="panel-heading"><h2>Best Ball Watch</h2></div>
-          <div class="table-wrap"><table><thead><tr><th>Player</th><th>Pick</th><th>Status</th><th>Position</th></tr></thead><tbody id="best-ball-table"></tbody></table></div>
-          <p id="best-ball-verdict" class="verdict">Waiting for scores.</p>
-        </article>
+      <section class="summary" id="summary" aria-label="Round summary"></section>
+
+      <section class="leaderboard-head">
+        <div>
+          <p class="section-kicker" id="boardKicker">Live standings</p>
+          <h2 id="boardTitle">Round 1 leaderboard</h2>
+        </div>
+        <div class="updated" id="updatedAt">Waiting for scores…</div>
       </section>
 
-      <div id="error-banner" class="error-banner" role="alert" hidden></div>
+      <div class="column-labels" aria-hidden="true">
+        <span>Pos</span><span id="teamHeader">Team</span><span id="cumulativeHeader">Cumulative score</span><span id="roundHeader">Round pace</span><span id="golfersHeader">Golfers</span>
+      </div>
+      <section id="leaderboard" class="leaderboard" aria-live="polite">
+        <div class="loading-card"><div class="spinner"></div><p>Walking the course for live scores…</p></div>
+      </section>
     </main>
+
+    <footer class="footer shell">
+      <p>MUST-O 2026 presented by mGolf · Unofficial scoring tracker</p>
+      <p>Live scoring via ESPN · Auto-refreshes every 60 seconds</p>
+    </footer>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

@@ -1,106 +1,59 @@
-# Deploy U.S. Open Golf Picks Live
+# Deploy MUST-O 2026
 
-This package mirrors the Vercel + Supabase deployment pattern used by the other U.S. Open leaderboard. Vercel serves the static site and `/api/scores`; Supabase stores timestamped score snapshots.
+This project uses Vercel for the public website and live-score function. Supabase stores timestamped copies of the score feed for later history and analysis.
 
-## 1. Download and extract
+## 1. Put the project on GitHub
 
-Extract the zip. The extracted repository root must directly contain:
+1. Extract the project archive.
+2. Create an empty GitHub repository, for example `must-o-2026`.
+3. Add the extracted project files to the repository root. `public`, `api`, `supabase`, `package.json`, and `vercel.json` should all be at the top level.
+4. Commit and push the files to the `main` branch.
 
-- `public/`
-- `api/`
-- `supabase/`
-- `tests/`
-- `vercel.json`
-- `package.json`
+Do not commit `.env` files or any Supabase secret key.
 
-Do not upload a parent folder that places these files one level too deep.
+## 2. Create Supabase
 
-## 2. Create a GitHub repository
+1. Create a project at `supabase.com` and wait for it to finish provisioning.
+2. Open **SQL Editor**, choose **New query**, and paste the complete contents of `supabase/migrations/001_initial.sql`.
+3. Click **Run**. The query creates `score_snapshots` and `latest_score_snapshot`.
+4. Open the project's **Connect** dialog and copy the Project URL.
+5. Open **Settings > API Keys**. Create or copy a server-side Secret key (`sb_secret_...`).
 
-1. Create an empty GitHub repository such as `us-open-golf-picks-2026`.
-2. Upload all extracted contents to the repository root.
-3. Commit the files to the `main` branch.
+The secret key bypasses Row Level Security. Keep it only in Vercel's server-side environment variables and never put it in `public/` or browser code.
 
-Command-line alternative:
+## 3. Deploy on Vercel
 
-```bash
-git init
-git add .
-git commit -m "Deploy U.S. Open golf picks leaderboard"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/us-open-golf-picks-2026.git
-git push -u origin main
-```
+1. Sign in at `vercel.com` with the Git provider that owns the repository.
+2. Select **Add New > Project**, find the repository, and click **Import**.
+3. Leave the root directory as the repository root. The included `vercel.json` selects the **Other** framework preset and explicitly registers `api/scores.js` as a function. Vercel automatically serves the existing `public` directory.
+4. In **Environment Variables**, add:
 
-Never commit a Supabase secret key or an `.env` file.
+   - `SUPABASE_URL`: the Supabase Project URL
+   - `SUPABASE_SECRET_KEY`: the Supabase `sb_secret_...` key
 
-## 3. Configure Supabase
+   Apply both to **Production**, **Preview**, and **Development**.
+5. Click **Deploy**.
 
-1. Create a project at `https://supabase.com/dashboard`.
-2. Wait for provisioning to finish.
-3. Open **SQL Editor → New query**.
-4. Paste the full contents of `supabase/migrations/001_initial.sql`.
-5. Click **Run**.
-6. Open **Connect** and copy the Project URL.
-7. Open **Settings → API Keys** and create a server-side Secret key beginning with `sb_secret_`.
+Vercel will provide a public `*.vercel.app` address. Every push to `main` creates a new production deployment.
 
-The migration creates:
+## 4. Verify the public site
 
-- `score_snapshots`: one saved live-score payload per event/minute.
-- `latest_score_snapshot`: a view returning the latest event snapshot.
-- A read-only public policy for snapshots.
+1. Open the Vercel address in a private/incognito window.
+2. Confirm the status pill changes from **Connecting** to the current tournament status.
+3. Confirm all 43 contestants appear and round tabs and search work.
+4. Open `https://YOUR-DOMAIN.vercel.app/api/scores`. It should return JSON containing `event`, `players`, and `updatedAt`.
+5. In Supabase, open **Table Editor > score_snapshots**. A row should appear after the public page requests scores.
 
-The secret key bypasses Row Level Security. Keep it only in Vercel's encrypted server-side environment variables. Never place it in `public/`, GitHub, or browser code.
+The site remains live without Supabase if the two variables are omitted; Supabase is used for score history. Live scores come through the Vercel function in `api/scores.js`.
 
-## 4. Import into Vercel
+## 5. Optional custom domain
 
-1. Open `https://vercel.com`.
-2. Choose **Add New → Project**.
-3. Import the GitHub repository.
-4. Leave **Root Directory** as `./`.
-5. The included `vercel.json` automatically selects the **Other** framework and the `public` output directory.
-6. Add these environment variables:
-
-```text
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SECRET_KEY=sb_secret_your_key
-```
-
-Apply both variables to **Production**, **Preview**, and **Development**.
-
-Optional override:
-
-```text
-ESPN_EVENT_ID=401811952
-```
-
-The U.S. Open event ID is already built in, so the override is normally unnecessary.
-
-Environment-variable changes require a new deployment.
-
-## 5. Deploy
-
-1. Click **Deploy**.
-2. Vercel will provide a public `*.vercel.app` address.
-3. Future pushes to the GitHub `main` branch will deploy automatically.
-
-## 6. Verify
-
-1. Open the public website in an incognito window.
-2. Confirm Sean and Zach each have four starters.
-3. Confirm the alternate and Best Ball sections show the correct picks.
-4. Confirm the source/status pill changes from **Connecting** to the tournament status.
-5. Visit `https://YOUR-SITE.vercel.app/api/scores` and confirm JSON loads with `event`, `players`, and `updatedAt`.
-6. Confirm the JSON field `snapshotSaved` is `true`.
-7. In Supabase, open **Table Editor → score_snapshots** and confirm a saved row appears.
-8. Ensure Vercel **Deployment Protection** is disabled for Production if everyone should have access.
+In Vercel, open **Project > Settings > Domains**, add the domain, and follow the DNS records Vercel displays. The original `vercel.app` address will continue working.
 
 ## Troubleshooting
 
-- **Scores delayed:** Open `/api/scores` directly, then inspect **Vercel → Project → Logs**.
-- **No Supabase row:** Recheck both environment-variable names and values, then redeploy.
-- **Home page returns 404:** Confirm `public/index.html`, `api`, and `vercel.json` are at the repository root and Root Directory is `./`.
-- **A golfer says Not found:** Check the full spelling in `public/scoring.js` against the `/api/scores` JSON.
-- **Changes are missing:** Confirm the commit reached `main` and the latest production deployment completed.
-
-The public leaderboard can still display live scores without Supabase. Supabase is used for score history and deployment verification.
+- **Page loads but says Scores delayed:** Open `/api/scores` directly and inspect the Vercel Function logs under **Project > Logs**.
+- **`/api/scores` returns Vercel `NOT_FOUND`:** Confirm `api/scores.js` is visible at the top level of the GitHub repository, not inside `public` or another enclosing folder. Confirm Vercel's Root Directory is `./`, then redeploy the latest commit.
+- **No Supabase rows:** Recheck the two variable names, make sure the SQL ran successfully, then redeploy. Environment-variable changes apply only to new deployments.
+- **404 on the home page:** Confirm `public/index.html` and `vercel.json` are in the repository root and Vercel's Root Directory is `./`.
+- **Changes are not visible:** Confirm the commit reached `main` and that the latest Vercel production deployment finished successfully.

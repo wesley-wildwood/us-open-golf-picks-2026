@@ -14,7 +14,6 @@ create index if not exists score_snapshots_event_captured_idx
 
 alter table public.score_snapshots enable row level security;
 
-drop policy if exists "Public can read score snapshots" on public.score_snapshots;
 create policy "Public can read score snapshots"
   on public.score_snapshots for select
   to anon, authenticated

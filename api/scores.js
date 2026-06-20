@@ -2,8 +2,7 @@ const EVENT_ID = process.env.ESPN_EVENT_ID || "401811952";
 const ESPN_URL = `https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?event=${EVENT_ID}`;
 
 function parseToPar(value) {
-  if (value === "E") return 0;
-  if (value === "-" || value == null || value === "") return null;
+  if (value === "E" || value === "-" || value == null) return 0;
   const parsed = Number.parseInt(String(value).replace("+", ""), 10);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -16,34 +15,43 @@ function teeTime(round) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-function inferCurrentRound(competitors) {
-  const startedRounds = competitors.flatMap((competitor) =>
-    (competitor.linescores || [])
-      .filter((round) => (round.linescores?.length || 0) > 0 || (Number.isFinite(round.value) && round.value > 0))
-      .map((round) => Number(round.period) || 1)
-  );
-  return Math.min(4, Math.max(1, ...startedRounds));
+function firstTwoRounds(competitor) {
+  return [1, 2].map((period) => (competitor.linescores || []).find((round) => round.period === period));
 }
 
-function shapePlayer(competitor, currentRound) {
+function computeCutLine(competitors, par) {
+  const completed = competitors.flatMap((competitor) => {
+    const rounds = firstTwoRounds(competitor);
+    if (!rounds.every((round) => round && round.linescores?.length >= 18 && Number.isFinite(round.value))) return [];
+    return [rounds[0].value + rounds[1].value - par * 2];
+  }).sort((a, b) => a - b);
+  if (!completed.length) return null;
+  return completed[Math.min(59, completed.length - 1)];
+}
+
+function shapePlayer(competitor, { currentRound, cutLine, par }) {
   const rounds = {};
   for (const round of competitor.linescores || []) {
-    const roundNumber = Number(round.period);
+    const roundNumber = round.period;
     if (!roundNumber || roundNumber > 4) continue;
     const holes = round.linescores?.length || 0;
     const strokes = Number.isFinite(round.value) && round.value > 0 ? round.value : null;
     const toPar = parseToPar(round.displayValue);
     rounds[roundNumber] = {
       strokes,
-      toPar,
+      toPar: strokes == null && round.displayValue === "-" ? null : toPar,
       holes,
       teeTime: teeTime(round),
       status: holes >= 18 ? "complete" : holes > 0 ? "playing" : "not_started"
     };
   }
 
-  if (!rounds[currentRound]) {
-    rounds[currentRound] = { strokes: null, toPar: null, holes: 0, teeTime: null, status: "not_started" };
+  const openingRounds = firstTwoRounds(competitor);
+  const completed36 = openingRounds.every((round) => round && round.linescores?.length >= 18 && Number.isFinite(round.value));
+  const scoreAfter36 = completed36 ? openingRounds[0].value + openingRounds[1].value - par * 2 : null;
+  let status = "active";
+  if (currentRound >= 3 && cutLine != null) {
+    status = !completed36 ? "withdrawn" : scoreAfter36 > cutLine ? "missed_cut" : "active";
   }
 
   return {
@@ -54,6 +62,8 @@ function shapePlayer(competitor, currentRound) {
     flag: competitor.athlete?.flag?.href || null,
     tournamentToPar: parseToPar(competitor.score),
     position: competitor.order || null,
+    status,
+    scoreAfter36,
     rounds
   };
 }
@@ -65,7 +75,7 @@ async function saveSnapshot(payload) {
 
   const capturedMinute = new Date(payload.updatedAt);
   capturedMinute.setUTCSeconds(0, 0);
-  const result = await fetch(`${url}/rest/v1/score_snapshots?on_conflict=event_id,captured_minute`, {
+  const response = await fetch(`${url}/rest/v1/score_snapshots?on_conflict=event_id,captured_minute`, {
     method: "POST",
     headers: {
       apikey: key,
@@ -81,11 +91,7 @@ async function saveSnapshot(payload) {
       payload
     })
   });
-
-  if (!result.ok) {
-    throw new Error(`Supabase snapshot returned ${result.status}`);
-  }
-  return true;
+  return response.ok;
 }
 
 export default async function handler(request, response) {
@@ -100,34 +106,30 @@ export default async function handler(request, response) {
     const event = data.events?.find((item) => item.id === EVENT_ID) || data.events?.[0];
     const competition = event?.competitions?.[0];
     if (!event || !competition) throw new Error("U.S. Open event was not found");
+    const currentRound = competition.status?.period || 1;
+    const par = 70;
+    const cutLine = currentRound >= 3 ? computeCutLine(competition.competitors || [], par) : null;
 
-    const competitors = competition.competitors || [];
-    const currentRound = inferCurrentRound(competitors);
     const payload = {
       event: {
         id: event.id,
-        name: event.name || "U.S. Open",
+        name: event.name,
         venue: "Shinnecock Hills Golf Club",
-        par: 70,
-        status: competition.status?.type?.description || event.status?.type?.description || "In progress",
+        par,
+        cutLine,
+        status: competition.status?.type?.description || event.status?.type?.description || "Scheduled",
         statusDetail: competition.status?.type?.detail || null,
         currentRound,
         startDate: event.date,
         endDate: event.endDate
       },
-      players: competitors.map((competitor) => shapePlayer(competitor, currentRound)),
+      players: (competition.competitors || []).map((competitor) => shapePlayer(competitor, { currentRound, cutLine, par })),
       updatedAt: new Date().toISOString(),
       source: "ESPN public scoreboard"
     };
 
-    let snapshotSaved = false;
-    try {
-      snapshotSaved = await saveSnapshot(payload);
-    } catch (snapshotError) {
-      console.error(snapshotError);
-    }
-
-    return response.status(200).json({ ...payload, snapshotSaved });
+    saveSnapshot(payload).catch(() => {});
+    return response.status(200).json(payload);
   } catch (error) {
     return response.status(502).json({
       error: "Live scores are temporarily unavailable",
